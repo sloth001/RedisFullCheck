@@ -18,6 +18,7 @@ type Metric struct {
 	TotalFieldConflict int64                              `json:"total_field_conflict"`
 	KeyMetric          map[string]map[string]*CounterStat `json:"key_stat"`
 	FieldMetric        map[string]map[string]*CounterStat `json:"field_stat"`
+	TotalKeyFix        int64                              `json:"total_key_fixt"`
 }
 
 type MetricItem struct {

@@ -7,10 +7,10 @@ import (
 )
 
 func NewValueOutlineVerifier(stat *metric.Stat, param *FullCheckParameter) *ValueOutlineVerifier {
-	return &ValueOutlineVerifier{VerifierBase{stat, param}}
+	return &ValueOutlineVerifier{VerifierBase{stat, param, 0}}
 }
 
-func (p *ValueOutlineVerifier) VerifyOneGroupKeyInfo(keyInfo []*common.Key, conflictKey chan<- *common.Key, sourceClient *client.RedisClient, targetClient *client.RedisClient) {
+func (p *ValueOutlineVerifier) VerifyOneGroupKeyInfo(keyInfo []*common.Key, conflictKey chan<- *common.Key, sourceClient *client.RedisClient, targetClient *client.RedisClient, times int, fix int) {
 	p.FetchTypeAndLen(keyInfo, sourceClient, targetClient)
 
 	// re-check ttl on the source side when key missing on the target side

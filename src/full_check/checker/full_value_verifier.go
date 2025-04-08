@@ -21,12 +21,12 @@ type FullValueVerifier struct {
 
 func NewFullValueVerifier(stat *metric.Stat, param *FullCheckParameter, ignoreBigKey bool) *FullValueVerifier {
 	return &FullValueVerifier{
-		VerifierBase: VerifierBase{stat, param},
+		VerifierBase: VerifierBase{stat, param, 0},
 		ignoreBigKey: ignoreBigKey,
 	}
 }
 
-func (p *FullValueVerifier) VerifyOneGroupKeyInfo(keyInfo []*common.Key, conflictKey chan<- *common.Key, sourceClient *client.RedisClient, targetClient *client.RedisClient) {
+func (p *FullValueVerifier) VerifyOneGroupKeyInfo(keyInfo []*common.Key, conflictKey chan<- *common.Key, sourceClient *client.RedisClient, targetClient *client.RedisClient, times int, fix int) {
 	// 对于没有类型的Key, 取类型和长度
 	noTypeKeyInfo := make([]*common.Key, 0, len(keyInfo))
 	for i := 0; i < len(keyInfo); i++ {
@@ -38,6 +38,74 @@ func (p *FullValueVerifier) VerifyOneGroupKeyInfo(keyInfo []*common.Key, conflic
 		p.FetchTypeAndLen(noTypeKeyInfo, sourceClient, targetClient)
 	}
 
+    // db keys
+    if times > 1 && (fix == 1) {
+        common.Logger.Infof("times:%v, begin to fix key", times)
+
+        // fetch value
+		sourceReply, err := sourceClient.PipeValueCommand(keyInfo)
+		if err != nil {
+			common.Logger.Critical(err)
+		}
+
+		targetReply, err := targetClient.PipeValueCommand(keyInfo)
+		if err != nil {
+			common.Logger.Critical(err)
+		}
+
+	    for i, oneKeyInfo := range keyInfo {
+
+		    switch oneKeyInfo.Tp {
+				case common.StringKeyType:
+					var sourceValue, targetValue []byte
+					if sourceReply[i] != nil {
+						sourceValue = sourceReply[i].([]byte)
+					}
+					if targetReply[i] != nil {
+						targetValue = targetReply[i].([]byte)
+					}
+					common.Logger.Infof("times:%v, key:%v, type:%v, source value:%v, target value:%v", times, string(oneKeyInfo.Key), oneKeyInfo.Tp.Name, string(sourceValue), string(targetValue))
+				case common.HashKeyType:
+					fallthrough
+				case common.ZsetKeyType:
+					sourceValue, targetValue := common.ValueHelper_Hash_SortedSet_String(sourceReply[i]), common.ValueHelper_Hash_SortedSet_String(targetReply[i])
+					common.Logger.Infof("times:%v, key:%v, type:%v, source value:%v, target value:%v", times, string(oneKeyInfo.Key), oneKeyInfo.Tp.Name, sourceValue, targetValue)
+				case common.ListKeyType:
+					sourceValue, targetValue := common.ValueHelper_List_String(sourceReply[i]), common.ValueHelper_List_String(targetReply[i])
+					common.Logger.Infof("times:%v, key:%v, type:%v, source value:%v, target value:%v", times, string(oneKeyInfo.Key), oneKeyInfo.Tp.Name, sourceValue, targetValue)
+				case common.SetKeyType:
+					sourceValue, targetValue := common.ValueHelper_Set_String(sourceReply[i]), common.ValueHelper_Set_String(targetReply[i])
+					common.Logger.Infof("times:%v, key:%v, type:%v, source value:%v, target value:%v", times, string(oneKeyInfo.Key), oneKeyInfo.Tp.Name, sourceValue, targetValue)
+			}
+		}
+		
+	    // fix
+	    // dump value
+		sourceReply, err = sourceClient.PipeDumpCommand(keyInfo)
+		if err != nil {
+			common.Logger.Critical(err)
+		}
+	    dumpValues := make([]string, 0, 0)
+		for i, oneKeyInfo := range keyInfo {
+				var sourceValueBytes []byte
+				if sourceReply[i] != nil {
+					sourceValueBytes = sourceReply[i].([]byte)
+					dumpValues = append(dumpValues, string(sourceValueBytes))
+				} else {
+				    dumpValues = append(dumpValues, "")
+				}
+				p.Stat.FixKey[oneKeyInfo.Tp.Index][oneKeyInfo.ConflictType].Inc(1)
+				common.Logger.Infof("fix key %v:%v, type:%v", i, string(oneKeyInfo.Key), oneKeyInfo.Tp.Name)
+		}
+		// restore
+		targetReply, err = targetClient.PipeRestoreCommand(keyInfo, dumpValues)
+		if err != nil {
+			common.Logger.Critical(err)
+		}
+
+		common.Logger.Infof("fix key size:%v", len(targetReply))
+    }
+    
 	// re-check ttl on the source side when key missing on the target side
 	p.RecheckTTL(keyInfo, sourceClient)
 
@@ -198,7 +266,7 @@ func (p *FullValueVerifier) VerifyOneGroupKeyInfo(keyInfo []*common.Key, conflic
 		p.CheckFullValueFetchAll(fullCheckFetchAllKeyInfo, conflictKey, sourceClient, targetClient)
 	}
 	if len(retryNewVerifyKeyInfo) != 0 {
-		p.VerifyOneGroupKeyInfo(retryNewVerifyKeyInfo, conflictKey, sourceClient, targetClient)
+		p.VerifyOneGroupKeyInfo(retryNewVerifyKeyInfo, conflictKey, sourceClient, targetClient, 0, 0)
 	}
 
 }

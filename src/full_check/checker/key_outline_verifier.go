@@ -12,7 +12,7 @@ type KeyOutlineVerifier struct {
 }
 
 func NewKeyOutlineVerifier(stat *metric.Stat, param *FullCheckParameter) *KeyOutlineVerifier {
-	return &KeyOutlineVerifier{VerifierBase{stat, param}}
+	return &KeyOutlineVerifier{VerifierBase{stat, param, 0}}
 }
 
 func (p *KeyOutlineVerifier) FetchKeys(keyInfo []*common.Key, sourceClient *client.RedisClient, targetClient *client.RedisClient) {
@@ -52,7 +52,7 @@ func (p *KeyOutlineVerifier) FetchKeys(keyInfo []*common.Key, sourceClient *clie
 	wg.Wait()
 }
 
-func (p *KeyOutlineVerifier) VerifyOneGroupKeyInfo(keyInfo []*common.Key, conflictKey chan<- *common.Key, sourceClient *client.RedisClient, targetClient *client.RedisClient) {
+func (p *KeyOutlineVerifier) VerifyOneGroupKeyInfo(keyInfo []*common.Key, conflictKey chan<- *common.Key, sourceClient *client.RedisClient, targetClient *client.RedisClient, times int, fix int) {
 	p.FetchKeys(keyInfo, sourceClient, targetClient)
 
 	// re-check ttl on the source side when key missing on the target side

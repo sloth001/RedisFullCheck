@@ -443,6 +443,38 @@ func (p *RedisClient) PipeZscoreCommand(key []byte, field [][]byte) ([]interface
 	}
 }
 
+func (p *RedisClient) PipeDumpCommand(keyInfo []*common.Key) ([]interface{}, error) {
+	commands := make([]combine, len(keyInfo))
+	for i, key := range keyInfo {
+		commands[i] = combine{
+			command: "dump",
+			params:  []interface{}{key.Key},
+		}
+	}
+
+	if ret, err := p.PipeRawCommand(commands, ""); err != nil && err != emptyError {
+		return nil, err
+	} else {
+		return ret, nil
+	}
+}
+
+func (p *RedisClient) PipeRestoreCommand(keyInfo []*common.Key, valueInfo []string) ([]interface{}, error) {
+	commands := make([]combine, len(keyInfo))
+	for i, key := range keyInfo {
+		commands[i] = combine{
+			command: "restore",
+			params:  []interface{}{key.Key, 0, valueInfo[i], "replace"},
+		}
+	}
+
+	if ret, err := p.PipeRawCommand(commands, ""); err != nil && err != emptyError {
+		return nil, err
+	} else {
+		return ret, nil
+	}
+}
+
 func (p *RedisClient) FetchValueUseScan_Hash_Set_SortedSet(oneKeyInfo *common.Key, onceScanCount int) (map[string][]byte, error) {
 	var scanCmd string
 	switch oneKeyInfo.Tp {

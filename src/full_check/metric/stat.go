@@ -11,6 +11,8 @@ type Stat struct {
 
 	TotalConflictFields int64
 	TotalConflictKeys int64
+
+	FixKey   [common.EndKeyTypeIndex][common.EndConflict]AtomicSpeedCounter
 }
 
 func (p *Stat) Rotate() {
@@ -19,6 +21,7 @@ func (p *Stat) Rotate() {
 		for conType := common.ConflictType(0); conType < common.EndConflict; conType++ {
 			p.ConflictField[keyType][conType].Rotate()
 			p.ConflictKey[keyType][conType].Rotate()
+			p.FixKey[keyType][conType].Rotate()
 		}
 	}
 }
@@ -47,6 +50,7 @@ func (p *Stat) Reset(clear bool) {
 
 			p.ConflictField[keyType][conType].Reset()
 			p.ConflictKey[keyType][conType].Reset()
+			p.FixKey[keyType][conType].Reset()
 		}
 	}
 }

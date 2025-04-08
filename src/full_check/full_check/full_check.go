@@ -43,6 +43,7 @@ type FullCheck struct {
 	totalConflict      int64
 	totalKeyConflict   int64
 	totalFieldConflict int64
+	totalKeyFix        int64
 
 	verifier checker.IVerifier
 }
@@ -116,7 +117,8 @@ func (p *FullCheck) PrintStat(finished bool) {
 	p.totalConflict = int64(0)
 	p.totalKeyConflict = int64(0)
 	p.totalFieldConflict = int64(0)
-
+    p.totalKeyFix = int64(0)
+    
 	// fmt.Fprintf(&buf, "--- key scan ---\n")
 	fmt.Fprintf(&buf, "KeyScan:%v\n", p.stat.Scan)
 	metricStat.KeyScan = p.stat.Scan.Json()
@@ -152,6 +154,22 @@ func (p *FullCheck) PrintStat(finished bool) {
 		}
 	}
 
+    // fmt.Fprintf(&buf, "--- key fix ---\n")
+	for i := common.KeyTypeIndex(0); i < common.EndKeyTypeIndex; i++ {
+		for j := common.ConflictType(0); j < common.NoneConflict; j++ {
+			// fmt.Println(i, j, p.stat.FixKey[i][j].Total())
+			if p.stat.FixKey[i][j].Total() != 0 {
+				metricStat.KeyMetric[i.String()][j.String()] = p.stat.FixKey[i][j].Json()
+				if p.times == p.CompareCount {
+					fmt.Fprintf(&buf, "KeyFixAtLast|%s|%s|%v\n", i, j, p.stat.FixKey[i][j])
+					p.totalKeyFix += p.stat.FixKey[i][j].Total()
+				} else {
+					fmt.Fprintf(&buf, "KeyFixInProcess|%s|%s|%v\n", i, j, p.stat.FixKey[i][j])
+				}
+			}
+		}
+	}
+	
 	metricStat.FieldMetric = make(map[string]map[string]*metric.CounterStat)
 	// fmt.Fprintf(&buf, "--- field equal ---\n")
 	for i := common.KeyTypeIndex(0); i < common.EndKeyTypeIndex; i++ {
@@ -194,7 +212,8 @@ func (p *FullCheck) PrintStat(finished bool) {
 			metricStat.TotalConflict = p.totalConflict
 			metricStat.TotalKeyConflict = p.totalKeyConflict
 			metricStat.TotalFieldConflict = p.totalFieldConflict
-
+            metricStat.TotalKeyFix = p.totalKeyFix
+            
 			metricstr, _ := json.Marshal(metricStat)
 			common.Logger.Info(string(metricstr))
 			// fmt.Println(string(metricstr))
@@ -210,11 +229,11 @@ func (p *FullCheck) IncrScanStat(a int) {
 
 func (p *FullCheck) Start() {
 	var err error
-
+    startTime := time.Now().Format("2006-01-02-15:04:05")
 	for i := 1; i <= p.CompareCount; i++ {
 		// init sqlite db
 		os.Remove(p.ResultDBFile + "." + strconv.Itoa(i))
-		p.db[i], err = sql.Open("sqlite3", p.ResultDBFile+"."+strconv.Itoa(i))
+		p.db[i], err = sql.Open("sqlite3", p.ResultDBFile+"."+startTime+"."+strconv.Itoa(i))
 		if err != nil {
 			panic(common.Logger.Critical(err))
 		}
@@ -405,7 +424,7 @@ func (p *FullCheck) VerifyAllKeyInfo(allKeys <-chan []*common.Key, conflictKey c
 	qos := common.StartQoS(conf.Opts.Qps)
 	for keyInfo := range allKeys {
 		<-qos.Bucket
-		p.verifier.VerifyOneGroupKeyInfo(keyInfo, conflictKey, &sourceClient, &targetClient)
+		p.verifier.VerifyOneGroupKeyInfo(keyInfo, conflictKey, &sourceClient, &targetClient, p.times, p.Fix)
 	} // for oneGroupKeys := range allKeys
 
 	qos.Close()

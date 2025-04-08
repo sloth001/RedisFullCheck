@@ -202,6 +202,7 @@ func (p *FullCheck) ScanFromDB(allKeys chan<- []*common.Key) {
 			break
 		}
 		p.IncrScanStat(len(keyInfo))
+		
 		allKeys <- keyInfo
 	} // for{}
 }

@@ -15,7 +15,7 @@ const (
 	RoleSlave  = "slave"
 )
 
-func HandleAddress(address, password, authType string) ([]string, error) {
+func HandleAddress(address, password, authType string, dbType int) ([]string, error) {
 	if strings.Contains(address, AddressSplitter) {
 		arr := strings.Split(address, AddressSplitter)
 		if len(arr) != 2 {
@@ -36,7 +36,12 @@ func HandleAddress(address, password, authType string) ([]string, error) {
 		return fetchNodeList(clusterList[0], password, authType, role)
 	} else {
 		clusterList := strings.Split(address, AddressClusterSplitter)
-		if len(clusterList) <= 1 {
+
+		if len(clusterList) < 1 {
+			return clusterList, nil
+		}
+		
+		if len(clusterList) == 1  && dbType != 1 {
 			return clusterList, nil
 		}
 
@@ -45,6 +50,9 @@ func HandleAddress(address, password, authType string) ([]string, error) {
 		if err != nil {
 			return nil, err
 		}
+
+		common.Logger.Infof("master node ilst: %v", masterList)
+		
 		// compare master list equal
 		if common.CompareUnorderedList(masterList, clusterList) {
 			return clusterList, nil
@@ -54,14 +62,21 @@ func HandleAddress(address, password, authType string) ([]string, error) {
 		if err != nil {
 			return nil, err
 		}
+
+		common.Logger.Infof("slave node ilst: %v", slaveList)
+		
 		// compare slave list equal
 		if common.CompareUnorderedList(slaveList, clusterList) {
 			return clusterList, nil
 		}
 
+        return masterList, nil
+
+        /*
 		return nil, fmt.Errorf("if type isn't cluster, should only used 1 node. if type is cluster, " +
 			"input list should be all master or all slave: 'master1;master2;master3...' or " +
 			"'slave1;slave2;slave3...'")
+		*/
 	}
 }
 

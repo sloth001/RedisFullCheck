@@ -79,6 +79,12 @@ func main() {
 	if parallel < 1 || parallel > 100 {
 		panic(common.Logger.Errorf("invalid option parallel %d, expect 1<=parallel<=100", conf.Opts.Parallel))
 	}
+
+	fix := conf.Opts.Fix
+	if fix != 0 && fix != 1 {
+		panic(common.Logger.Errorf("invalid option fix %d, expect 0 or 1", conf.Opts.Fix))
+	}
+	
 	qps := conf.Opts.Qps
 	if qps < 1 || qps > 5000000 {
 		panic(common.Logger.Errorf("invalid option qps %d, expect 1<=qps<=5000000", conf.Opts.Qps))
@@ -100,7 +106,7 @@ func main() {
 		common.BigKeyThreshold = conf.Opts.BigKeyThreshold
 	}
 
-	sourceAddressList, err := client.HandleAddress(conf.Opts.SourceAddr, conf.Opts.SourcePassword, conf.Opts.SourceAuthType)
+	sourceAddressList, err := client.HandleAddress(conf.Opts.SourceAddr, conf.Opts.SourcePassword, conf.Opts.SourceAuthType, conf.Opts.SourceDBType)
 	if err != nil {
 		panic(common.Logger.Errorf("source address[%v] illegal[%v]", conf.Opts.SourceAddr, err))
 	} else if len(sourceAddressList) > 1 && conf.Opts.SourceDBType != 1 {
@@ -109,7 +115,7 @@ func main() {
 		panic(common.Logger.Errorf("input source address is empty"))
 	}
 
-	targetAddressList, err := client.HandleAddress(conf.Opts.TargetAddr, conf.Opts.TargetPassword, conf.Opts.TargetAuthType)
+	targetAddressList, err := client.HandleAddress(conf.Opts.TargetAddr, conf.Opts.TargetPassword, conf.Opts.TargetAuthType, conf.Opts.TargetDBType)
 	if err != nil {
 		panic(common.Logger.Errorf("target address[%v] illegal[%v]", conf.Opts.TargetAddr, err))
 	} else if len(targetAddressList) > 1 && conf.Opts.TargetDBType != 1 {
@@ -162,6 +168,7 @@ func main() {
 		BatchCount:   batchCount,
 		Parallel:     parallel,
 		FilterTree:   filterTree,
+		Fix:    conf.Opts.Fix,
 	}
 
 	common.Logger.Info("configuration: ", conf.Opts)

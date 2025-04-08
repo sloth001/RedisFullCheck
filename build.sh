@@ -56,5 +56,5 @@ run_builder='go build -v'
 #tar -cvzf redis-full-check-"$fullcheckVersion".tar.gz redis-full-check.darwin redis-full-check.linux redis-full-check.windows ChangeLog
 
 cd src/full_check
-$run_builder -ldflags "-X $info" -o "$output/redis-full-check"
+$run_builder -ldflags "-X $info" -o "$output/redis-full-check-fix"
 echo "build successfully!"

@@ -16,11 +16,13 @@ type FullCheckParameter struct {
 	BatchCount   int
 	Parallel     int
 	FilterTree   *common.Trie
+	Fix          int
 }
 
 type VerifierBase struct {
 	Stat         *metric.Stat
 	Param        *FullCheckParameter
+	times int
 }
 
 func (p *VerifierBase) IncrKeyStat(oneKeyInfo *common.Key) {
@@ -97,7 +99,7 @@ func (p *VerifierBase) recheckTTL(keyInfo []*common.Key, client *client.RedisCli
 
 type IVerifier interface {
 	VerifyOneGroupKeyInfo(keyInfo []*common.Key, conflictKey chan<- *common.Key, sourceClient *client.RedisClient,
-		targetClient *client.RedisClient)
+		targetClient *client.RedisClient, times int, fix int)
 }
 
 type ValueOutlineVerifier struct {
